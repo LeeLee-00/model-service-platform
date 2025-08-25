@@ -47,7 +47,7 @@ platform standards, view [their reference guide](https://platform.openai.com/doc
 
 ```sh
 git clone https://github.com/LeeLee-00/model-service-platform.git
-cd model-service
+cd model-service-platform
 ```
 
 ### 2. Configure Environment
