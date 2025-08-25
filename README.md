@@ -46,7 +46,7 @@ platform standards, view [their reference guide](https://platform.openai.com/doc
 ### 1. Clone the Repository
 
 ```sh
-git clone <your-repo-url>
+git clone https://github.com/LeeLee-00/model-service-platform.git
 cd model-service
 ```
 
@@ -89,7 +89,7 @@ No code changes are needed!
 | Service         | Description                        | Default Port |
 |-----------------|------------------------------------|--------------|
 | minio           | S3-compatible object storage        | 9000/9001    |
-| chatui          | Web chat interface                 | 3000         |
+| chatui          | Web chat interface                 | 4000         |
 | llm             | LLM (e.g., Qwen)                   | 8000         |
 | tinyllama       | LLM (e.g., TinyLlama)              | 8001         |
 | embedding       | Embedding model                    | 8002         |
