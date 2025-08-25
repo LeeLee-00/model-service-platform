@@ -1,0 +1,29 @@
+services:
+
+  chatui:
+    image: ghcr.io/huggingface/chat-ui-db:latest
+    container_name: chatui
+    networks:
+      - model-service_nginx
+    ports:
+      - "4000:3000"
+    environment:
+      MODELS: >
+        [
+          {
+            "name": "local-qwen",
+            "displayName": "Local LLM (Qwen 0.5B)",
+            "parameters": { "temperature": 0.7, "max_new_tokens": 1024 },
+            "endpoints": [{ "type": "openai", "baseURL": "http://llm:8000/v1" }]
+          }
+        ]
+    volumes:
+      - chatui-data:/data
+
+volumes:
+  chatui-data:
+
+networks:
+  model-service_nginx:
+    external: true
+    name: model-service_nginx

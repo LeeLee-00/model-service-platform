@@ -1,0 +1,118 @@
+<mxfile>
+  <diagram name="High-Level Model Architecture" id="e_tlCOsNnwefCZzdcVfp">
+    <mxGraphModel dx="2043" dy="1169" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-39" value="" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=1;strokeColor=#0366d6;dashed=1;container=1;collapsible=0;fillColor=#f5f9ff;fontStyle=1;direction=west;" parent="1" vertex="1">
+          <mxGeometry x="310" y="250" width="1665" height="790" as="geometry" />
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-42" value="Model Services (Containers)&#xa;• Batch requests for efficient inference&#xa;• Report token usage&#xa;• Support stop sequences&#xa;• OpenAI-compatible APIs" style="swimlane;startSize=80;horizontal=1;rounded=1;fillColor=#eefcf3;strokeColor=#1a7f37;fontStyle=1;swimlaneLine=1;direction=east;" parent="aNROFdXHHDkfv0Xfj7Nh-39" vertex="1">
+          <mxGeometry x="132.38" y="20" width="957.62" height="550" as="geometry" />
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-44" value="Embedding Service&#xa;&#xa;Endpoints: /v1/embeddings (text → vector)&#xa;Notes: batching, token usage, MinIO-backed cache" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=1;strokeColor=#1a1a1a;fillColor=#ffffff;direction=east;" parent="aNROFdXHHDkfv0Xfj7Nh-42" vertex="1">
+          <mxGeometry x="137.62437499999976" y="369.9967708333333" width="254.73593749999995" height="103.95083333333332" as="geometry" />
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-45" value="Multimodal Service&#xa;&#xa;Supports: Image + Text input &amp; generation&#xa;OpenAI-compatible routes for vision &amp; generation" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=1;strokeColor=#1a1a1a;fillColor=#ffffff;direction=east;" parent="aNROFdXHHDkfv0Xfj7Nh-42" vertex="1">
+          <mxGeometry x="27.623124999999987" y="210.38593749999998" width="240.62499999999994" height="103.95083333333332" as="geometry" />
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-46" value="Transcription Service (Optional)&#xa;&#xa;Endpoint: /v1/audio/transcriptions&#xa;Task: Speech → Text" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=1;strokeColor=#1a1a1a;fillColor=#ffffff;dashed=1;direction=east;" parent="aNROFdXHHDkfv0Xfj7Nh-42" vertex="1">
+          <mxGeometry x="557.6206249999998" y="210.3867708333333" width="258.43984374999997" height="103.95083333333332" as="geometry" />
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-43" value="LLM Service (Qwen, TinyLlama, etc.)&#xa;&#xa;Endpoint: /v1/chat/completions&#xa;Modes: Streaming &amp; Non-Streaming&#xa;Notes: batching, token usage, stop sequences" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=1;strokeColor=#1a1a1a;fillColor=#ffffff;direction=east;" parent="aNROFdXHHDkfv0Xfj7Nh-42" vertex="1">
+          <mxGeometry x="297.6228080357142" y="199.9964627659574" width="214.84374999999994" height="114.34427083333333" as="geometry" />
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-55" value="Extensibility&#xa;&#xa;Add a new model service container:&#xa;1) Define image &amp; env in docker-compose&#xa;2) Mount shared network &amp; MinIO&#xa;3) Expose OpenAI-like endpoint&#xa;→ Instantly usable by Chat UI" style="shape=note;whiteSpace=wrap;html=1;strokeColor=#ff9900;fillColor=#fff7e6;" parent="aNROFdXHHDkfv0Xfj7Nh-39" vertex="1">
+          <mxGeometry x="160.00405042016837" y="609.9997872340425" width="266.9117647058824" height="168.0851063829787" as="geometry" />
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-41" value="MinIO (S3-Compatible Object Storage)&#xa;&#xa;• Shared models &amp; artifacts bucket&#xa;• Caches downloaded models&#xa;• Stores embeddings / outputs / logs" style="shape=cylinder;whiteSpace=wrap;html=1;strokeColor=#1a1a1a;fillColor=#fff8e1;boundedLbl=1;" parent="aNROFdXHHDkfv0Xfj7Nh-39" vertex="1">
+          <mxGeometry x="1249.9960974854228" y="450.0023999160135" width="261.69096209912533" height="145.52631578947367" as="geometry" />
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-48" value="S3 Access (read/write)&#xa;Models, embeddings, artifacts, logs" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;strokeColor=#1a1a1a;" parent="aNROFdXHHDkfv0Xfj7Nh-39" source="aNROFdXHHDkfv0Xfj7Nh-42" target="aNROFdXHHDkfv0Xfj7Nh-41" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="3" value="&lt;b&gt;Docker Compose Orchestration (shared Network)&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="aNROFdXHHDkfv0Xfj7Nh-39" vertex="1">
+          <mxGeometry x="670" y="690" width="310" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-40" value="Chat UI (Web App)&#xa;&#xa;• Connects via OpenAI-compatible endpoints&#xa;• Presents chats, images, transcripts&#xa;• Shows token usage in responses" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=1;strokeColor=#1a1a1a;fillColor=#ffffff;" parent="aNROFdXHHDkfv0Xfj7Nh-39" vertex="1">
+          <mxGeometry x="1240" y="60" width="223.06" height="173.16" as="geometry" />
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-47" value="OpenAI-compatible HTTP APIs&#xa;/v1/chat/completions, /v1/embeddings, /v1/audio/transcriptions" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;strokeColor=#1a1a1a;" parent="aNROFdXHHDkfv0Xfj7Nh-39" source="aNROFdXHHDkfv0Xfj7Nh-40" target="aNROFdXHHDkfv0Xfj7Nh-42" edge="1">
+          <mxGeometry x="1" y="200" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1120" y="147" />
+              <mxPoint x="1120" y="50" />
+            </Array>
+            <mxPoint x="-200" y="-190" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-49" value="Chat completions" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;endArrow=block;html=1;strokeColor=#c0c0c0;" parent="aNROFdXHHDkfv0Xfj7Nh-39" source="aNROFdXHHDkfv0Xfj7Nh-40" target="aNROFdXHHDkfv0Xfj7Nh-43" edge="1">
+          <mxGeometry x="0.9203" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="547" y="160" />
+            </Array>
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-51" value="Image+Text" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;endArrow=block;html=1;strokeColor=#c0c0c0;" parent="aNROFdXHHDkfv0Xfj7Nh-39" source="aNROFdXHHDkfv0Xfj7Nh-40" target="aNROFdXHHDkfv0Xfj7Nh-45" edge="1">
+          <mxGeometry x="0.9382" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="327" y="160" />
+            </Array>
+            <mxPoint y="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-52" value="Transcriptions" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;endArrow=block;html=1;strokeColor=#c0c0c0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" parent="aNROFdXHHDkfv0Xfj7Nh-39" source="aNROFdXHHDkfv0Xfj7Nh-40" target="aNROFdXHHDkfv0Xfj7Nh-46" edge="1">
+          <mxGeometry x="0.8757" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1240" y="160" />
+              <mxPoint x="835" y="160" />
+            </Array>
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-53" value="Hugging Face Hub&#xa;(Models &amp; Artifacts)" style="shape=cloud;whiteSpace=wrap;html=1;strokeColor=#1a1a1a;fillColor=#eef5ff;" parent="1" vertex="1">
+          <mxGeometry x="800" y="60" width="220" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-57" value="Download models if missing&#xa;(uses HF_TOKEN)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;strokeColor=#1a1a1a;" parent="1" source="aNROFdXHHDkfv0Xfj7Nh-53" target="aNROFdXHHDkfv0Xfj7Nh-42" edge="1">
+          <mxGeometry x="-0.4841" relative="1" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="920" y="200" />
+              <mxPoint x="920" y="200" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-60" value="Legend&#xa;Solid arrow: primary data flow&#xa;Dashed arrow: config / optional paths&#xa;Containers share one Docker network" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=1;strokeColor=#1a1a1a;fillColor=#ffffff;" parent="1" vertex="1">
+          <mxGeometry x="1990" y="700" width="220" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-54" value="Environment &amp; Config&#xa;&#xa;• docker-compose.yml&#xa;• .env (HF_TOKEN, MINIO_*, MODEL_NAMES, BATCHING)" style="shape=rectangle;whiteSpace=wrap;html=1;rounded=1;strokeColor=#1a1a1a;fillColor=#f0f0f0;" parent="1" vertex="1">
+          <mxGeometry x="1990" y="500" width="220" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-58" value="docker-compose: builds/starts services&#xa;Injects ENV VARs into containers&#xa;Defines shared network" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;endArrow=block;html=1;strokeColor=#6a737d;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="aNROFdXHHDkfv0Xfj7Nh-54" target="aNROFdXHHDkfv0Xfj7Nh-39" edge="1">
+          <mxGeometry x="0.9046" relative="1" as="geometry">
+            <mxPoint x="2015" y="570" as="sourcePoint" />
+            <mxPoint x="1405.0769230769229" y="290" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="2120" y="500" />
+              <mxPoint x="2120" y="140" />
+              <mxPoint x="1143" y="140" />
+            </Array>
+            <mxPoint y="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-59" value="MINIO_* credentials / buckets" style="edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;endArrow=block;html=1;strokeColor=#6a737d;" parent="1" source="aNROFdXHHDkfv0Xfj7Nh-54" target="aNROFdXHHDkfv0Xfj7Nh-41" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-38" value="End User&#xa;Web Browser" style="shape=mxgraph.mockup.misc.browser;whiteSpace=wrap;html=1;strokeColor=#1a1a1a;fillColor=#ffffff;rounded=1;" parent="1" vertex="1">
+          <mxGeometry x="1940" y="170" width="145" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="aNROFdXHHDkfv0Xfj7Nh-56" value="HTTP (Browser)&#xa;UI interaction" style="edgeStyle=orthogonalEdgeStyle;rounded=1;endArrow=block;html=1;strokeColor=#1a1a1a;" parent="1" source="aNROFdXHHDkfv0Xfj7Nh-38" target="aNROFdXHHDkfv0Xfj7Nh-40" edge="1">
+          <mxGeometry x="-0.5146" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
