@@ -100,26 +100,27 @@ services:
   #   ports:
   #     - 8002:8000
 
-  # multimodal:
-  #   build:
-  #     context: ./model-service
-  #     target: dev
-  #   container_name: multimodal
-  #   networks:
-  #     - nginx
-  #   depends_on:
-  #     - minio
-  #   environment:
-  #     - MODEL_NAME=llava-hf/llava-interleave-qwen-0.5b-hf
-  #     - MODEL_TYPE=MULTIMODAL
-  #     - MINIO_ENDPOINT=${MINIO_ENDPOINT}
-  #     - MINIO_SVC_USER=${MINIO_SVC_USER}
-  #     - MINIO_SVC_PASSWORD=${MINIO_SVC_PASSWORD}
-  #     - HF_TOKEN=${HF_TOKEN}
-  #   volumes:
-  #     - ./model-service:/app
-  #   ports:
-  #     - 8003:8000
+  multimodal:
+    runtime: nvidia
+    build:
+      context: ./model-service
+      target: dev
+    container_name: multimodal
+    networks:
+      - nginx
+    depends_on:
+      - minio
+    environment:
+      - MODEL_NAME=google/gemma-3-4b-it
+      - MODEL_TYPE=MULTIMODAL
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+      - MINIO_SVC_USER=${MINIO_SVC_USER}
+      - MINIO_SVC_PASSWORD=${MINIO_SVC_PASSWORD}
+      - HF_TOKEN=${HF_TOKEN}
+    volumes:
+      - ./model-service:/app
+    ports:
+      - 8003:8000
 
   # transcription:
   #   build:

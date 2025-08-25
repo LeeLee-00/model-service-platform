@@ -15,6 +15,12 @@ services:
             "displayName": "Local LLM (Qwen 0.5B)",
             "parameters": { "temperature": 0.7, "max_new_tokens": 1024 },
             "endpoints": [{ "type": "openai", "baseURL": "http://llm:8000/v1" }]
+          },
+          {
+            "name": "gemma",
+            "displayName": "Local LLM (Gemma 3-4B)",
+            "parameters": { "temperature": 0.7, "max_new_tokens": 1024 },
+            "endpoints": [{ "type": "openai", "baseURL": "http://multimodal:8000/v1" }]
           }
         ]
     volumes:
