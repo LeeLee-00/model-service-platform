@@ -108,12 +108,6 @@ See `.env.example` for all required variables:
 
 ---
 
-## License
-
-MIT License
-
----
-
 ## Acknowledgements
 
 - [Hugging Face](https://huggingface.co/)
