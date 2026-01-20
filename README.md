@@ -82,7 +82,7 @@ For development or single-GPU setups:
 
 ```sh
 # 1. Clone and configure
-git clone https://gitlab.wildfireworkspace.com/eop/data-toolbox/model-service.git
+git clone https://github.com/LeeLee-00/model-service-platform.git
 cd model-service
 cp .env.example .env
 # Edit .env with your credentials
