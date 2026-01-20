@@ -15,16 +15,52 @@ services:
       - "3000:3000"
     depends_on:
       - mongo
-    env_file:
-      - chatui.env
+    environment:
+      MONGODB_URL: "mongodb://mongo:27017/chatui"
+      MODELS: >-
+        [
+          {
+            "name": "qwen",
+            "displayName": "Qwen 0.5B (Fast, GPU 0)",
+            "parameters": {
+              "temperature": 0.7,
+              "max_new_tokens": 1024
+            },
+            "endpoints": [
+              {
+                "type": "openai",
+                "baseURL": "http://llm-primary:8000/v1"
+              }
+            ]
+          },
+          {
+            "name": "embedding",
+            "displayName": "Embeddings",
+            "parameters": {
+              "temperature": 0.5
+            },
+            "endpoints": [
+              {
+                "type": "openai",
+                "baseURL": "http://embedding:8002/v1"
+              }
+            ]
+          }
+        ]
+      ENABLE_COMMUNITY_MODELS: "false"
+      PUBLIC_APP_NAME: "Model Service Chat"
+      PUBLIC_APP_DESCRIPTION: "Multi-Model AI Cluster"
+      ENABLE_ASSISTANTS: "false"
+      ENABLE_ASSISTANTS_RAG: "false"
     volumes:
       - chatui-data:/data
+    restart: unless-stopped
 
 volumes:
   chatui-data:
   mongo-data:
 
 networks:
-  model-service_nginx:
+  nginx:
     external: true
     name: model-service_nginx

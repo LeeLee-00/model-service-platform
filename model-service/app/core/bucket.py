@@ -39,23 +39,27 @@ def get_s3_client() -> Optional[BaseClient]:
 
 def model_exists_in_minio() -> bool:
     """
-    Checks if the model exists in the MinIO bucket.
+    Checks if the model files exist in the MinIO bucket.
 
-    :return: True if the model exists in the bucket, False otherwise.
+    :return: True if model exists, False otherwise.
     """
     s3 = get_s3_client()
     if not s3:
         logger.error("S3 client is not initialized, cannot check model existence.")
         return False
-    bucket = settings.MINIO_BUCKET
 
+    # Use clean model name
+    clean_model_name = settings.MODEL_NAME.replace("/", "-").replace(".", "-").lower()
+    
     try:
         response = s3.list_objects_v2(
-            Bucket=bucket, Prefix=settings.MODEL_HF_DIR_NAME + "/", MaxKeys=1
+            Bucket=settings.MINIO_BUCKET, 
+            Prefix=f"models/{clean_model_name}/", 
+            MaxKeys=1
         )
         return "Contents" in response
     except ClientError as e:
-        logger.error("Error checking if model exists in MinIO: %s", e)
+        logger.error("Error checking MinIO for model: %s", e)
         return False
 
 
@@ -77,28 +81,42 @@ def download_model_from_minio():
     if not s3:
         logger.error("S3 client is not initialized, cannot check model existence.")
         raise RuntimeError("Failed to initialize S3 client")
+    
+    # Use the same clean name for downloading
+    clean_model_name = settings.MODEL_NAME.replace("/", "-").replace(".", "-").lower()
+    
     # List model objects in minio
     response = s3.list_objects_v2(
-        Bucket=settings.MINIO_BUCKET, Prefix=settings.MODEL_HF_DIR_NAME + "/"
+        Bucket=settings.MINIO_BUCKET, Prefix=f"models/{clean_model_name}/"
     )
 
     if "Contents" not in response:
-        logger.error("Failed to find any objects for %s in bucket", settings.MODEL_NAME)
+        logger.error("Failed to find any objects for %s in bucket", clean_model_name)
         raise RuntimeError("Failed to find model objects")
+    
     logger.info(
         "Found %d objects for %s in bucket",
         len(response["Contents"]),
-        settings.MODEL_NAME,
+        clean_model_name,
     )
 
     for obj in response["Contents"]:
         key = obj["Key"]
-        filename = key.split("/")[-1]
+        # Remove the "models/{clean_model_name}/" prefix
+        relative_path = key[len(f"models/{clean_model_name}/"):]
+        
+        if not relative_path:  # Skip the directory itself
+            continue
+            
         local_path = os.path.join(
-            settings.MODELS_DIR, settings.MODEL_HF_DIR_NAME, filename
+            settings.MODELS_DIR, settings.MODEL_HF_DIR_NAME, relative_path
         )
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        
+        logger.debug(f"Downloading {key} to {local_path}")
         s3.download_file(Bucket=settings.MINIO_BUCKET, Key=key, Filename=local_path)
+    
+    logger.info(f"Model downloaded from models/{clean_model_name}/")
 
 
 def download_model_from_hf():
@@ -149,10 +167,22 @@ def upload_model_to_minio():
     except (PermissionError, OSError) as exc:
         logger.warning("Failed to remove .cache directory: %s", exc)
 
+    # Use a clean model name for the S3 path
+    # Convert "Qwen/Qwen2.5-0.5B-Instruct" to "qwen-2.5-0.5b-instruct"
+    clean_model_name = settings.MODEL_NAME.replace("/", "-").replace(".", "-").lower()
+    
+    logger.info(f"Uploading model to MinIO under name: {clean_model_name}")
+
     for filepath in model_path.rglob("*"):
         if filepath.is_file():
+            relative_path = filepath.relative_to(model_path)
+            s3_key = f"models/{clean_model_name}/{relative_path}"
+            
+            logger.debug(f"Uploading {filepath} to {s3_key}")
             s3.upload_file(
                 str(filepath),
                 settings.MINIO_BUCKET,
-                f"{settings.MODEL_HF_DIR_NAME}/{filepath.relative_to(model_path)}",
+                s3_key
             )
+    
+    logger.info(f"Model uploaded successfully to models/{clean_model_name}/")

@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     MODEL_TYPE: str = "LLM"
     MODELS_DIR: str = "/models"
     TRANSFORMERS_OFFLINE: bool = True
+    SERVICE_NAME: Optional[str] = None  # For service discovery (e.g., "llm-primary")
 
     # Batch processing settings
     TORCH_DEVICE: Optional[str] = None

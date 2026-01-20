@@ -89,16 +89,24 @@ async def lifespan(application: FastAPI):
         pass
 
 
-app = FastAPI(lifespan=lifespan)
-if router is not None:
-    app.include_router(router, prefix="/v1")
+app = FastAPI(title=settings.API_TITLE, version=settings.API_VERSION)
+app.router.lifespan_context = lifespan
 
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # or "*" for quick local dev
+    allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# *** THIS IS THE MISSING LINE ***
+# Include the model-specific routes (chat, embedding, transcription, etc.)
+if router:
+    app.include_router(router, prefix="/v1")
+    logger.info(f"Included {settings.MODEL_TYPE} router with routes: {[route.path for route in router.routes]}")
+
 
 # OpenAI-like error envelopes
 @app.exception_handler(HTTPException)
@@ -146,3 +154,96 @@ async def validation_exception_handler(
             }
         },
     )
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for service discovery."""
+    return {
+        "status": "healthy",
+        "service": settings.SERVICE_NAME or settings.MODEL_TYPE,
+        "model": settings.MODEL_NAME
+    }
+
+@app.get("/v1/models")
+async def list_models():
+    """
+    OpenAI-compatible models endpoint
+    
+    Returns information about the model this service is serving
+    """
+    # Get clean model name
+    clean_model_name = settings.MODEL_NAME.replace("/", "-").replace(".", "-").lower()
+    
+    return {
+        "object": "list",
+        "data": [
+            {
+                "id": clean_model_name,
+                "object": "model",
+                "created": 1234567890,  # Placeholder timestamp
+                "owned_by": "local",
+                "permission": [],
+                "root": clean_model_name,
+                "parent": None,
+                "model_type": settings.MODEL_TYPE,
+                "service_name": settings.SERVICE_NAME or "unknown"
+            }
+        ]
+    }
+
+@app.get("/gpu-stats")
+async def gpu_stats():
+    """
+    Get GPU statistics for this service.
+    
+    Returns GPU memory usage, utilization, and temperature.
+    """
+    try:
+        import torch
+        
+        if not torch.cuda.is_available():
+            return {"gpus": [], "cuda_available": False}
+        
+        gpus = []
+        for i in range(torch.cuda.device_count()):
+            props = torch.cuda.get_device_properties(i)
+            memory_allocated = torch.cuda.memory_allocated(i) / (1024**2)  # MB
+            memory_reserved = torch.cuda.memory_reserved(i) / (1024**2)  # MB
+            memory_total = props.total_memory / (1024**2)  # MB
+            
+            gpu_info = {
+                "device_id": i,
+                "name": props.name,
+                "memory_used_mb": round(memory_allocated, 2),
+                "memory_total_mb": round(memory_total, 2),
+                "memory_percent": round((memory_allocated / memory_total * 100), 2),
+                "temperature_c": None,  # Requires pynvml
+                "utilization_percent": None  # Requires pynvml
+            }
+            
+            # Try to get additional stats with pynvml
+            try:
+                import pynvml
+                pynvml.nvmlInit()
+                handle = pynvml.nvmlDeviceGetHandleByIndex(i)
+                temp = pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
+                utilization = pynvml.nvmlDeviceGetUtilizationRates(handle)
+                
+                gpu_info["temperature_c"] = temp
+                gpu_info["utilization_percent"] = utilization.gpu
+            except:
+                pass  # pynvml not available or error
+            
+            gpus.append(gpu_info)
+        
+        return {
+            "gpus": gpus,
+            "cuda_available": True,
+            "device_count": torch.cuda.device_count()
+        }
+    
+    except Exception as e:
+        logger.error(f"Failed to get GPU stats: {e}")
+        return {"gpus": [], "error": str(e)}
+

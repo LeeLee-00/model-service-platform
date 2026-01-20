@@ -1,0 +1,76 @@
+# CPU Testing Configuration
+# Simplified version for testing without GPUs
+
+services:
+  # Gateway - Unified API entry point
+  gateway:
+    build: ./model-service
+    container_name: model-gateway
+    command: ["uvicorn", "app.gateway.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+    networks: [nginx]
+    ports:
+      - "8080:8080"
+    environment:
+      LOG_LEVEL: info
+    depends_on:
+      - minio
+      - registry
+    restart: unless-stopped
+
+  # Model Registry - Manage models in MinIO
+  registry:
+    build: ./model-service
+    container_name: model-registry
+    command: ["uvicorn", "app.registry.main:app", "--host", "0.0.0.0", "--port", "8090", "--reload"]
+    networks: [nginx]
+    ports:
+      - "8090:8090"
+    env_file:
+      - .env
+    volumes:
+      - ./temp_downloads:/tmp/models
+    depends_on:
+      - minio
+    restart: unless-stopped
+
+  # LLM Service (CPU mode - smaller model for testing)
+  llm-primary:
+    build: ./model-service
+    container_name: llm-cpu
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+    networks: [nginx]
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      MODEL_NAME: "Qwen/Qwen2.5-0.5B-Instruct"
+      MODEL_TYPE: "LLM"
+      SERVICE_NAME: "llm-primary"
+      MAX_BATCH_SIZE: "2"
+    depends_on:
+      - minio
+    restart: unless-stopped
+
+  # Embedding Service (CPU mode)
+  embedding:
+    build: ./model-service
+    container_name: embedding-cpu
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002"]
+    networks: [nginx]
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env
+    environment:
+      MODEL_NAME: "sentence-transformers/all-MiniLM-L6-v2"
+      MODEL_TYPE: "EMBEDDING"
+      SERVICE_NAME: "embedding"
+    depends_on:
+      - minio
+    restart: unless-stopped
+
+networks:
+  nginx:
+    external: true
+    name: model-service_nginx

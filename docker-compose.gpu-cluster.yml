@@ -1,0 +1,143 @@
+# GPU Cluster Configuration
+# Multi-GPU setup with dedicated services per model type
+# For single GPU testing: only llm-primary is enabled by default
+
+services:
+  # Gateway - Unified API entry point (no GPU needed)
+  gateway:
+    build: ./model-service
+    container_name: model-gateway
+    command: ["uvicorn", "app.gateway.main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+    networks: [nginx]
+    ports:
+      - "8080:8080"
+    environment:
+      LOG_LEVEL: info
+    depends_on:
+      - minio
+    restart: unless-stopped
+
+  # Model Registry - Manage models in MinIO (no GPU needed)
+  registry:
+    build: ./model-service
+    container_name: model-registry
+    command: ["uvicorn", "app.registry.main:app", "--host", "0.0.0.0", "--port", "8090", "--reload"]
+    networks: [nginx]
+    ports:
+      - "8090:8090"
+    env_file:
+      - .env
+    volumes:
+      - ./temp_downloads:/tmp/models
+    depends_on:
+      - minio
+    restart: unless-stopped
+
+  # GPU 0 - Primary LLM (Qwen 0.5B - lightweight for testing)
+  # This is the ONLY service enabled for single-GPU setups
+  llm-primary:
+    build: ./model-service
+    container_name: llm-primary
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+    networks: [nginx]
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      MODEL_NAME: "Qwen/Qwen2.5-0.5B-Instruct"
+      MODEL_TYPE: "LLM"
+      CUDA_VISIBLE_DEVICES: "0"
+      MAX_BATCH_SIZE: "8"
+      SERVICE_NAME: "llm-primary"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0']  # Single GPU
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # ============================================
+  # MULTI-GPU SERVICES (Uncomment when you have 2+ GPUs)
+  # ============================================
+
+  # GPU 1 - Secondary LLM (TinyLlama)
+  # llm-secondary:
+  #   build: ./model-service
+  #   container_name: llm-secondary
+  #   command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+  #   networks: [nginx]
+  #   ports:
+  #     - "8001:8001"
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     MODEL_NAME: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+  #     MODEL_TYPE: "LLM"
+  #     CUDA_VISIBLE_DEVICES: "0"
+  #     MAX_BATCH_SIZE: "4"
+  #     SERVICE_NAME: "llm-secondary"
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             device_ids: ['1']
+  #             capabilities: [gpu]
+  #   restart: unless-stopped
+
+  # GPU 2 - Embeddings
+  embedding:
+    build: ./model-service
+    container_name: embedding
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002"]
+    networks: [nginx]
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env
+    environment:
+      MODEL_NAME: "sentence-transformers/all-MiniLM-L6-v2"
+      MODEL_TYPE: "EMBEDDING"
+      CUDA_VISIBLE_DEVICES: "0"
+      MAX_BATCH_SIZE: "32"
+      SERVICE_NAME: "embedding"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0']
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # GPU 3 - Multimodal/Vision (LLaVA)
+  # multimodal:
+  #   build: ./model-service
+  #   container_name: multimodal
+  #   command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8003"]
+  #   networks: [nginx]
+  #   ports:
+  #     - "8003:8003"
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     MODEL_NAME: "llava-hf/llava-v1.6-mistral-7b-hf"
+  #     MODEL_TYPE: "MULTIMODAL"
+  #     CUDA_VISIBLE_DEVICES: "0"
+  #     SERVICE_NAME: "multimodal"
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             device_ids: ['3']
+  #             capabilities: [gpu]
+  #   restart: unless-stopped
+
+networks:
+  nginx:
+    external: true
+    name: model-service_nginx

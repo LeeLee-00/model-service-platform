@@ -1,6 +1,6 @@
 # Model Service Platform
 
-A **containerized, multi-model AI inference platform** for serving Hugging Face models with OpenAI-compatible APIs, unified storage, and a modern web UI. Easily deploy LLMs, embedding models, multimodal models, and more—locally or in production.
+A **containerized, multi-GPU AI inference platform** for serving Hugging Face models with OpenAI-compatible APIs, unified storage, and intelligent routing. Purpose-built for **offline/air-gapped deployments** with multiple GPUs and diverse model types.
 
 ---
 
@@ -9,13 +9,29 @@ A **containerized, multi-model AI inference platform** for serving Hugging Face 
 
 ## Features
 
-- **Multi-Model Serving:** Run multiple LLMs, embedding, multimodal, and transcription models in parallel, each as a separate service.
-- **OpenAI-Compatible API:** Each model exposes `/v1/chat/completions` and related endpoints, supporting both streaming and non-streaming requests.
-- **Unified Object Storage:** Uses MinIO (S3-compatible) for model and artifact storage, enabling fast startup and easy model management.
-- **Web Chat UI:** Modern chat interface connects to any deployed model via OpenAI-compatible endpoints.
-- **Easy Extensibility:** Add new models or services by editing `docker-compose.yml`—no code changes required.
-- **Efficient Inference:** Request batching, token usage reporting, and prompt formatting for production workloads.
-- **Development Friendly:** Hot-reload, interactive API docs, and CLI tools for local development.
+- **Multi-GPU Orchestration:** Dedicated GPU per service with intelligent resource allocation
+- **Offline-First Architecture:** Pre-download models to MinIO for air-gapped operation
+- **Service Discovery & Load Balancing:** Automatic health monitoring and intelligent request routing
+- **Multi-Model Serving:** Run LLMs, embeddings, vision, and transcription models simultaneously
+- **OpenAI-Compatible API:** Full compatibility with OpenAI spec for easy integration
+- **Unified Gateway:** Single entry point for all model services with automatic failover
+- **Model Registry:** Centralized model management, versioning, and lifecycle control
+- **Production-Ready:** Request batching, GPU monitoring, and observability built-in
+
+---
+
+## Use Cases
+
+**Perfect For:**
+- 🔒 Air-gapped/offline deployments (military, healthcare, finance)
+- 🎮 Multi-GPU clusters requiring heterogeneous workloads
+- 🏢 Organizations needing centralized model management
+- 🔬 Research teams running multiple model types concurrently
+
+**Not Ideal For:**
+- Single model, single GPU setups (use [Ollama](https://ollama.ai/) instead)
+- Cloud-hosted with internet access (use hosted APIs)
+- Prototyping/learning (too much infrastructure overhead)
 
 ---
 
@@ -30,60 +46,220 @@ platform standards, view [their reference guide](https://platform.openai.com/doc
 
 ## Architecture Overview
 
+### Standard Mode (Development/Single GPU)
 ```
-[Chat UI] <--> [Model Services: LLM | Embedding | Multimodal | Transcription] <--> [MinIO Storage] <--> [Hugging Face Hub]
+[Chat UI] <--> [Model Services] <--> [MinIO Storage] <--> [Hugging Face Hub]
 ```
 
-- **MinIO:** Central S3-compatible storage for all models and artifacts.
-- **Model Services:** Each service runs a different Hugging Face model, exposes OpenAI-compatible APIs, and shares storage.
-- **Chat UI:** Web app for interacting with any deployed model.
-- **Docker Compose:** Orchestrates all services and networking.
+### GPU Cluster Mode (Production/Multi-GPU)
+```
+                                    ┌─> [LLM Primary - GPU 0]
+                                    │
+[Chat UI] <--> [Gateway] ---------> ├─> [LLM Secondary - GPU 1]
+                ↕                   │
+         [Service Registry]         ├─> [Multimodal - GPU 2]
+                ↕                   │
+         [Model Registry]           └─> [Embedding - GPU 3]
+                ↕
+           [MinIO Storage] <--> [Hugging Face Hub]
+```
+
+**Components:**
+- **Gateway:** Unified API entry point with intelligent routing and load balancing
+- **Service Registry:** Health monitoring, service discovery, and GPU statistics
+- **Model Registry:** Centralized model management (download, list, delete from MinIO)
+- **Model Services:** GPU-bound workers for different model types
+- **MinIO:** Offline model storage (S3-compatible)
+- **Chat UI:** Web interface for end users
 
 ---
 
 ## Quick Start
 
-### 1. Clone the Repository
+### Standard Mode (Development)
+
+For development or single-GPU setups:
 
 ```sh
+# 1. Clone and configure
 git clone https://gitlab.wildfireworkspace.com/eop/data-toolbox/model-service.git
 cd model-service
-```
-
-### 2. Configure Environment
-
-Copy `.env.example` to `.env` and fill in required values (MinIO credentials, Hugging Face token, etc.).
-
-```sh
 cp .env.example .env
 # Edit .env with your credentials
-```
 
-### 3. Configure Chat UI (Optional)
-
-If you want to use the Chat UI, create your configuration from the template:
-
-```sh
-cp chatui.env.template chatui.env
-# Edit chatui.env to customize your models and branding
-```
-
-**Important:** The `chatui.env` file is gitignored to protect your configuration. Make sure to configure it before launching Chat UI.
-
-### 4. Launch the Platform
-
-**Option A: Core services only (models + storage)**
-```sh
+# 2. Launch services
 docker compose up -d
-```
 
-**Option B: With Chat UI**
-```sh
+# 3. (Optional) Add Chat UI
+cp chatui.env.template chatui.env
 docker compose -f docker-compose.yml -f docker-compose.chatui.yml up -d
 ```
 
-- Model APIs are available at ports `8000`, `8001`, etc.
-- Access the **Chat UI** at [http://localhost:3000](http://localhost:3000)
+### GPU Cluster Mode (Production)
+
+For multi-GPU offline deployments:
+
+#### Step 1: Pre-download Models (Internet Required)
+
+```sh
+# Run this ONCE when you have internet connectivity
+./scripts/offline-setup.sh
+```
+
+This will:
+- Start MinIO and Registry services
+- Download models from Hugging Face to MinIO
+- Prepare for offline operation
+
+Monitor progress:
+```sh
+docker compose logs -f registry
+```
+
+Verify models downloaded:
+```sh
+curl http://localhost:8090/models | jq
+```
+
+#### Step 2: Deploy GPU Cluster (Offline)
+
+```sh
+# Start all services with GPU assignments
+docker compose -f docker-compose.gpu-cluster.yml up -d
+```
+
+This will:
+- Assign each service to a dedicated GPU
+- Start Gateway for unified API access
+- Enable service discovery and health monitoring
+
+#### Step 3: Verify Cluster Health
+
+```sh
+# Check all services
+curl http://localhost:8080/services | jq
+
+# Check GPU utilization
+curl http://localhost:8080/gpu-stats | jq
+
+# Test chat completion
+curl -X POST http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "stream": false
+  }'
+```
+
+---
+
+## API Endpoints
+
+### Gateway (Port 8080)
+- `GET /services` - Service health and status
+- `GET /gpu-stats` - Cluster-wide GPU statistics
+- `POST /v1/chat/completions` - Unified chat endpoint (auto-routes)
+- `POST /v1/embeddings` - Unified embeddings endpoint
+- `GET /v1/models` - List all available models
+- `GET /health` - Gateway health check
+
+### Model Registry (Port 8090)
+- `GET /models` - List models in MinIO
+- `POST /models/{name}/download` - Download model from HuggingFace
+- `GET /models/{name}` - Get model info
+- `DELETE /models/{name}` - Remove model from storage
+
+### Individual Services (Ports 8000-8004)
+- `POST /v1/chat/completions` - Direct model access
+- `GET /v1/models` - Model information
+- `GET /health` - Service health
+- `GET /gpu-stats` - Service GPU stats
+
+---
+
+## GPU Resource Management
+
+The GPU cluster mode assigns specific GPUs to services:
+
+| Service | GPU ID | Model | Use Case |
+|---------|--------|-------|----------|
+| llm-primary | 0 | Qwen 0.5B | Fast general-purpose chat |
+| llm-secondary | 1 | TinyLlama 1.1B | Backup/specialized tasks |
+| multimodal | 2 | LLaVA 7B | Vision + text understanding |
+| embedding | 3 | all-MiniLM-L6 | High-throughput embeddings |
+| transcription* | 4 | Whisper Base | Speech-to-text (optional) |
+
+**Customize GPU assignments** in `docker-compose.gpu-cluster.yml`:
+```yaml
+deploy:
+  resources:
+    reservations:
+      devices:
+        - driver: nvidia
+          device_ids: ['0']  # Change GPU ID here
+          capabilities: [gpu]
+```
+
+---
+
+## Documentation
+
+- **[Docker Compose Commands Reference](docs/DOCKER-COMPOSE-COMMANDS.md)** - Complete guide for managing different stacks
+- **[GPU Cluster Architecture Guide](docs/GPU-CLUSTER-GUIDE.md)** - Deep dive into multi-GPU setup
+- **[Alternatives Comparison](docs/ALTERNATIVES-COMPARISON.md)** - vs Ollama, vLLM, LocalAI, etc.
+
+---
+
+## Common Tasks
+
+### Managing Services
+
+**Start/stop different stacks:**
+```sh
+# GPU Cluster
+docker compose -f docker-compose.yml -f docker-compose.gpu-cluster.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.gpu-cluster.yml down
+
+# ChatUI
+docker compose -f docker-compose.yml -f docker-compose.chatui.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.chatui.yml down
+
+# Development
+docker compose up -d
+docker compose down
+```
+
+See [DOCKER-COMPOSE-COMMANDS.md](docs/DOCKER-COMPOSE-COMMANDS.md) for complete reference.
+
+### Monitoring
+
+**View logs:**
+```sh
+# All services
+docker compose logs -f
+
+# Specific service
+docker compose logs -f gateway
+docker logs model-gateway --tail=50
+
+# Check status
+docker ps
+docker stats
+```
+
+**Health checks:**
+```sh
+# Gateway
+curl http://localhost:8080/health
+curl http://localhost:8080/services | jq
+
+# Registry
+curl http://localhost:8090/health
+curl http://localhost:8090/models | jq
+
+# Individual services
+curl http://localhost:8000/health
+```
 
 ---
 
@@ -217,6 +393,27 @@ Key variables:
 1. Model services are running: `docker compose ps`
 2. `chatui.env` has correct `baseURL` (use Docker service names like `http://llm:8000/v1`)
 3. All services are on the same Docker network
+
+### GPU Not Detected
+
+**Check:**
+1. NVIDIA drivers installed: `nvidia-smi`
+2. NVIDIA Container Toolkit installed
+3. Test GPU access: `docker run --rm --gpus all nvidia/cuda:12.3.2-base-ubuntu22.04 nvidia-smi`
+4. Check docker-compose.gpu-cluster.yml has correct `device_ids`
+
+### Port Already in Use
+
+**Fix:**
+```sh
+# Find what's using the port
+sudo lsof -i :8080
+
+# Stop conflicting services
+docker compose down
+```
+
+**For more troubleshooting help, see [DOCKER-COMPOSE-COMMANDS.md](docs/DOCKER-COMPOSE-COMMANDS.md#troubleshooting)**
 
 ---
 
