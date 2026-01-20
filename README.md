@@ -46,39 +46,116 @@ platform standards, view [their reference guide](https://platform.openai.com/doc
 ### 1. Clone the Repository
 
 ```sh
-git clone https://github.com/LeeLee-00/model-service-platform.git
-cd model-service-platform
+git clone https://gitlab.wildfireworkspace.com/eop/data-toolbox/model-service.git
+cd model-service
 ```
 
 ### 2. Configure Environment
 
 Copy `.env.example` to `.env` and fill in required values (MinIO credentials, Hugging Face token, etc.).
 
-### 3. Launch the Platform
-
 ```sh
-docker compose up --build
+cp .env.example .env
+# Edit .env with your credentials
 ```
 
-- Model APIs are available at ports `8000`, `8001`, etc.
+### 3. Configure Chat UI (Optional)
 
-### 4. Utilizing the ChatUI
+If you want to use the Chat UI, create your configuration from the template:
 
-Use the provided override to add the chat UI to the deployment.
+```sh
+cp chatui.env.template chatui.env
+# Edit chatui.env to customize your models and branding
+```
 
+**Important:** The `chatui.env` file is gitignored to protect your configuration. Make sure to configure it before launching Chat UI.
+
+### 4. Launch the Platform
+
+**Option A: Core services only (models + storage)**
+```sh
+docker compose up -d
+```
+
+**Option B: With Chat UI**
 ```sh
 docker compose -f docker-compose.yml -f docker-compose.chatui.yml up -d
 ```
 
+- Model APIs are available at ports `8000`, `8001`, etc.
 - Access the **Chat UI** at [http://localhost:3000](http://localhost:3000)
+
+---
+
+## Project Workflow
+
+### Development Cycle
+
+1. **Start Services:** Launch with `docker compose up -d`
+2. **Check Logs:** Monitor startup with `docker compose logs -f [service-name]`
+3. **Test APIs:** Use the interactive docs at `http://localhost:8000/docs`
+4. **Make Changes:** Edit code, then rebuild: `docker compose up -d --build [service-name]`
+5. **Stop Services:** `docker compose down` (add `-v` to remove volumes)
+
+### Adding/Updating Models
+
+1. **Edit Configuration:**
+   - Add new service in `docker-compose.yml`
+   - Update `chatui.env` to expose it in the UI
+
+2. **Rebuild and Restart:**
+   ```sh
+   docker compose up -d --build
+   ```
+
+3. **Verify:**
+   - Check API: `curl http://localhost:8000/v1/models`
+   - Check Chat UI: Visit http://localhost:3000/settings
+
+### Chat UI Configuration
+
+The Chat UI uses version **0.8.4** (pinned) to ensure stable behavior with custom models. 
+
+**Why version 0.8.4?**
+- Newer versions (>= 0.9.0) auto-fetch 110+ community models from Hugging Face
+- Version 0.8.4 respects your custom `MODELS` configuration
+- Recommended for self-hosted deployments with custom endpoints
+
+**To customize models:**
+1. Edit `chatui.env`
+2. Modify the `MODELS` array with your endpoints
+3. Restart: `docker compose -f docker-compose.yml -f docker-compose.chatui.yml restart chatui`
+
+Example multi-model configuration:
+```env
+MODELS=[{"name":"qwen","displayName":"Qwen 0.5B","endpoints":[{"type":"openai","baseURL":"http://llm:8000/v1"}]},{"name":"llava","displayName":"LLaVA Vision","multimodal":true,"endpoints":[{"type":"openai","baseURL":"http://multimodal:8003/v1"}]}]
+```
 
 ---
 
 ## Adding a New Model
 
-1. Duplicate a service block in `docker-compose.yml`.
-2. Set `MODEL_NAME` to your desired Hugging Face model.
-3. Optionally, update the Chat UI `MODELS` environment variable to add it to the UI.
+1. **Add Service to `docker-compose.yml`:**
+   ```yaml
+   my-new-model:
+     build: ./model-service
+     environment:
+       MODEL_NAME: "huggingface/my-model"
+       MODEL_TYPE: "llm"
+     ports:
+       - "8005:8000"
+   ```
+
+2. **Update Chat UI Configuration (optional):**
+   Edit `chatui.env` and add your model to the `MODELS` array:
+   ```env
+   MODELS=[...,{"name":"my-model","displayName":"My Model","endpoints":[{"type":"openai","baseURL":"http://my-new-model:8000/v1"}]}]
+   ```
+
+3. **Restart Services:**
+   ```sh
+   docker compose up -d --build
+   ```
 
 No code changes are needed!
 
@@ -89,7 +166,7 @@ No code changes are needed!
 | Service         | Description                        | Default Port |
 |-----------------|------------------------------------|--------------|
 | minio           | S3-compatible object storage        | 9000/9001    |
-| chatui          | Web chat interface                 | 4000         |
+| chatui          | Web chat interface                 | 3000         |
 | llm             | LLM (e.g., Qwen)                   | 8000         |
 | tinyllama       | LLM (e.g., TinyLlama)              | 8001         |
 | embedding       | Embedding model                    | 8002         |
@@ -100,11 +177,52 @@ No code changes are needed!
 
 ## Environment Variables
 
+### Core Services (`.env` file)
+
 See `.env.example` for all required variables:
-- `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`
-- `MINIO_SVC_USER`, `MINIO_SVC_PASSWORD`
-- `MINIO_ENDPOINT`
-- `HF_TOKEN` (Hugging Face access token)
+- `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` - MinIO admin credentials
+- `MINIO_SVC_USER`, `MINIO_SVC_PASSWORD` - Service account credentials
+- `MINIO_ENDPOINT` - MinIO server endpoint
+- `HF_TOKEN` - Hugging Face access token for downloading models
+
+### Chat UI (`chatui.env` file)
+
+**Important:** Copy `chatui.env.template` to `chatui.env` before first use.
+
+Key variables:
+- `MONGODB_URL` - MongoDB connection string
+- `MODELS` - JSON array of model configurations
+- `PUBLIC_APP_NAME` - Custom branding for the UI
+- `ENABLE_COMMUNITY_MODELS` - Set to `false` to only show your custom models
+
+---
+
+## Troubleshooting
+
+### Chat UI shows 110+ models instead of my custom ones
+
+**Solution:** Ensure you're using Chat UI version **0.8.4** (check `docker-compose.chatui.yml`). Newer versions auto-fetch community models by default.
+
+### Model service won't start
+
+**Check:**
+1. MinIO is running: `docker compose ps minio`
+2. Environment variables are set in `.env`
+3. Hugging Face token has correct permissions
+4. Logs: `docker compose logs [service-name]`
+
+### Chat UI can't connect to models
+
+**Verify:**
+1. Model services are running: `docker compose ps`
+2. `chatui.env` has correct `baseURL` (use Docker service names like `http://llm:8000/v1`)
+3. All services are on the same Docker network
+
+---
+
+## License
+
+MIT License
 
 ---
 

@@ -1,5 +1,6 @@
 .venv
 .env
+chatui.env
 __pycache__
 .python-version
 */app/models

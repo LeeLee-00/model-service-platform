@@ -1,33 +1,28 @@
 services:
+  mongo:
+    image: mongo:7
+    container_name: chatui-mongo
+    networks: [nginx]
+    volumes:
+      - mongo-data:/data/db
+    restart: unless-stopped
 
   chatui:
-    image: ghcr.io/huggingface/chat-ui-db:latest
+    image: ghcr.io/huggingface/chat-ui:0.8.4
     container_name: chatui
-    networks:
-      - model-service_nginx
+    networks: [nginx]
     ports:
-      - "4000:3000"
-    environment:
-      MODELS: >
-        [
-          {
-            "name": "local-qwen",
-            "displayName": "Local LLM (Qwen 0.5B)",
-            "parameters": { "temperature": 0.7, "max_new_tokens": 1024 },
-            "endpoints": [{ "type": "openai", "baseURL": "http://llm:8000/v1" }]
-          },
-          {
-            "name": "gemma",
-            "displayName": "Local LLM (Gemma 3-4B)",
-            "parameters": { "temperature": 0.7, "max_new_tokens": 1024 },
-            "endpoints": [{ "type": "openai", "baseURL": "http://multimodal:8000/v1" }]
-          }
-        ]
+      - "3000:3000"
+    depends_on:
+      - mongo
+    env_file:
+      - chatui.env
     volumes:
       - chatui-data:/data
 
 volumes:
   chatui-data:
+  mongo-data:
 
 networks:
   model-service_nginx:

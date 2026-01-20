@@ -1,0 +1,50 @@
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+include:
+  - project: 'eop/data-toolbox/cicd-templates'
+    ref: main
+    file:
+      - 'cleanup.yml'
+      - 'lint.yml'
+      - 'test.yml'
+      - 'containerize.yml'
+      - 'container_scanning.yml'
+
+stages:
+  - cleanup
+  - lint
+  - test
+  - containerize
+  - scan
+
+cleanup_mr_images:
+  extends: .cleanup-mr-images
+  needs: []
+  variables:
+    IMAGE_NAMES: "model-generic"
+
+test_placeholder:
+  stage: test
+  image: registry.wildfireworkspace.com/eop/streamlit-1.0/default-base:latest
+  script:
+    - echo "No tests implemented yet - placeholder job"
+    - exit 0
+  rules:
+    - when: always
+
+build_model_service_generic:
+  extends: .default-dockerize
+  variables:
+    CONTEXT: ./model-service
+    DOCKERFILE: ./model-service/Dockerfile
+    IMAGE_NAME: model-generic
+
+scan_model_service_generic:
+  extends: .default-scan
+  needs: ["build_model_service_generic"]
+  variables:
+    IMAGE_NAME: model-generic

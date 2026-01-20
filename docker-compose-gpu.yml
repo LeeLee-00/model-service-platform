@@ -1,7 +1,6 @@
 services:
 
   llm:
-    runtime: nvidia
     deploy:
       resources:
         reservations:
@@ -10,26 +9,25 @@ services:
               count: all
               capabilities: [gpu]
 
-  # tinyllama:
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: all
-  #             capabilities: [gpu]
+  tinyllama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
-  # embedding:
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: all
-  #             capabilities: [gpu]
+  embedding:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   multimodal:
-    runtime: nvidia
     deploy:
       resources:
         reservations:
@@ -38,11 +36,11 @@ services:
               count: all
               capabilities: [gpu]
 
-  # transcription:
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: all
-  #             capabilities: [gpu]
+  transcription:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
